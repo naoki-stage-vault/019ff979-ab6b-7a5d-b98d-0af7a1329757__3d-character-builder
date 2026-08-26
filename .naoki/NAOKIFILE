@@ -1,0 +1,45 @@
+COMPILER: "1.0"
+TAG: nextjs-starter-v1
+IMAGE:
+  NAME: naoki/nextjs
+  BASE: alpine:3.20
+  WORKDIR: /workspace/repo
+  PORTS:
+    - "${nki.service.web.port}:3000"
+  CMD: ["sh"]
+  ENVIRONMENT:
+    ARGUMENTS:
+      NODE_VERSION: "22"
+    VARIABLES:
+      NODE_ENV: development
+      PATH: /usr/sbin:/usr/bin:/sbin:/bin
+  BUILD:
+    - RUN: apk add --no-cache bash git nodejs npm
+  VERIFY:
+    - RUN: node --version
+    - RUN: npm --version
+    - RUN: git --version
+WORKFLOWS:
+  ENVIRONMENT:
+    CPU: "1"
+    MEMORY: "1024Mi"
+    TIMEOUT: "30m"
+    VARIABLES:
+      NODE_ENV: "${NODE_ENV:-development}"
+      NEXT_PUBLIC_API_URL: "${NEXT_PUBLIC_API_URL:-http://localhost:3000/api}"
+      NEXT_PUBLIC_APP_URL: "${nki.service.web.url:-http://localhost:3000}"
+      DATABASE_URL: "${DATABASE_URL:-postgresql://localhost:5432/nextjs}"
+      NEXTAUTH_URL: "${nki.service.web.url:-http://localhost:3000}"
+      NEXTAUTH_SECRET: "${NEXTAUTH_SECRET:-change-me-in-production}"
+      LOG_LEVEL: "${LOG_LEVEL:-debug}"
+  SCRIPTS:
+    SETUP:
+      - RUN: npm install
+    RUN:
+      - RUN: npm run dev
+    TEST:
+      - RUN: npm test
+    CHECK:
+      - RUN: npm run lint
+    BUILD:
+      - RUN: npm run build
