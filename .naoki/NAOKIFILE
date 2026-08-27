@@ -31,6 +31,7 @@ WORKFLOWS:
       DATABASE_URL: "${DATABASE_URL:-postgresql://localhost:5432/nextjs}"
       NEXTAUTH_URL: "${nki.service.web.url:-http://localhost:3000}"
       NEXTAUTH_SECRET: "${NEXTAUTH_SECRET:-change-me-in-production}"
+      GEMINI_KEY: "${GEMINI_KEY:-}"
       LOG_LEVEL: "${LOG_LEVEL:-debug}"
   SCRIPTS:
     SETUP:
