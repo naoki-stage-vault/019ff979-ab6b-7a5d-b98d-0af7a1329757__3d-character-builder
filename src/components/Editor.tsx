@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { EditorScene } from "@/lib/EditorScene";
 import { friendlyGeminiError, generateCharacter, generateLook } from "@/lib/gemini";
-import type { GizmoMode, HierarchyItem, Transform, Vec3 } from "@/lib/types";
+import type { GizmoMode, HierarchyItem, PartId, Transform, Vec3 } from "@/lib/types";
 import Toolbar from "./Toolbar";
 import GeneratorPanel from "./GeneratorPanel";
+import MoldPanel from "./MoldPanel";
 import ScenePanel from "./ScenePanel";
 
 const STORAGE_KEY = "3d-character-builder:scene-v1";
@@ -16,6 +17,7 @@ export default function Editor() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const sceneRef = useRef<EditorScene | null>(null);
   const selectedIdRef = useRef<string | null>(null);
+  const selectedPartRef = useRef<PartId | null>(null);
 
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
@@ -29,10 +31,28 @@ export default function Editor() {
   const [transform, setTransform] = useState<Transform>(IDENTITY);
   const [dragging, setDragging] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
+  const [moldTool, setMoldTool] = useState<"param" | "sculpt">("param");
+  const [selectedPart, setSelectedPart] = useState<PartId | null>(null);
+  const [partScale, setPartScale] = useState<Vec3 | null>(null);
+  const [brushSize, setBrushSize] = useState(0.25);
+  const [brushStrength, setBrushStrength] = useState(0.6);
 
   useEffect(() => {
     selectedIdRef.current = selectedId;
   }, [selectedId]);
+
+  useEffect(() => {
+    selectedPartRef.current = selectedPart;
+  }, [selectedPart]);
+
+  const refreshPartScale = useCallback((id: string | null, partId: PartId | null) => {
+    const scene = sceneRef.current;
+    if (!scene || !id || !partId) {
+      setPartScale(null);
+      return;
+    }
+    setPartScale(scene.getPartScale(id, partId));
+  }, []);
 
   // --- Montar la escena 3D una sola vez ---
   useEffect(() => {
@@ -40,7 +60,16 @@ export default function Editor() {
     if (!el) return;
 
     const scene = new EditorScene(el, {
-      onSelect: (id) => setSelectedId(id),
+      onSelect: (id) => {
+        setSelectedId(id);
+        if (id) sceneRef.current?.selectPart(selectedPartRef.current);
+        refreshPartScale(id, selectedPartRef.current);
+      },
+      onPartSelect: (p) => {
+        const changed = p !== selectedPartRef.current;
+        setSelectedPart(p);
+        if (changed) refreshPartScale(selectedIdRef.current, p);
+      },
       onHierarchy: (items) => setCharacters(items),
       onTransform: (id, t) => {
         if (id === selectedIdRef.current) setTransform(t);
@@ -53,7 +82,16 @@ export default function Editor() {
       scene.dispose();
       sceneRef.current = null;
     };
-  }, []);
+  }, [refreshPartScale]);
+
+  // Sincronizar herramienta de moldeado y pincel con la escena.
+  useEffect(() => {
+    sceneRef.current?.setMoldTool(moldTool);
+  }, [moldTool]);
+
+  useEffect(() => {
+    sceneRef.current?.setBrush(brushSize, brushStrength);
+  }, [brushSize, brushStrength]);
 
   // --- Acciones ---
   const handleGenerate = useCallback(async () => {
@@ -86,6 +124,7 @@ export default function Editor() {
     try {
       const { spec, model } = await generateLook(current);
       scene.regenerateCharacter(id, spec);
+      refreshPartScale(id, selectedPartRef.current);
       setLastModel(model);
       setStatus(`Look de "${spec.nombre}" regenerado (${model})`);
       window.setTimeout(() => setStatus(null), 4000);
@@ -94,7 +133,7 @@ export default function Editor() {
     } finally {
       setRegenLoading(false);
     }
-  }, []);
+  }, [refreshPartScale]);
 
   const handleSave = useCallback(() => {
     const scene = sceneRef.current;
@@ -178,6 +217,54 @@ export default function Editor() {
     [],
   );
 
+  const handleMoldTool = useCallback((t: "param" | "sculpt") => setMoldTool(t), []);
+
+  const handleSelectPart = useCallback(
+    (p: PartId) => {
+      setSelectedPart(p);
+      sceneRef.current?.selectPart(p);
+      refreshPartScale(selectedIdRef.current, p);
+    },
+    [refreshPartScale],
+  );
+
+  const handlePartScale = useCallback(
+    (axis: 0 | 1 | 2, value: number) => {
+      const scene = sceneRef.current;
+      const id = selectedIdRef.current;
+      const p = selectedPartRef.current;
+      if (!scene || !id || !p) return;
+      scene.setPartScale(id, p, axis, value);
+      setPartScale((prev) => {
+        if (!prev) return prev;
+        const next = [...prev] as Vec3;
+        next[axis] = value;
+        return next;
+      });
+    },
+    [],
+  );
+
+  const handleResetPart = useCallback(() => {
+    const scene = sceneRef.current;
+    const id = selectedIdRef.current;
+    const p = selectedPartRef.current;
+    if (!scene || !id || !p) return;
+    scene.resetPart(id, p);
+    setPartScale([1, 1, 1]);
+  }, []);
+
+  const handleResetAll = useCallback(() => {
+    const scene = sceneRef.current;
+    const id = selectedIdRef.current;
+    if (!scene || !id) return;
+    scene.resetMold(id);
+    setPartScale([1, 1, 1]);
+  }, []);
+
+  const handleBrushSize = useCallback((v: number) => setBrushSize(v), []);
+  const handleBrushStrength = useCallback((v: number) => setBrushStrength(v), []);
+
   const handleApplyTransform = useCallback(
     (field: "pos" | "rot" | "scale", axis: 0 | 1 | 2, value: number | null) => {
       const scene = sceneRef.current;
@@ -218,6 +305,16 @@ export default function Editor() {
               <b className="text-zinc-200">Supr</b> eliminar · <b className="text-zinc-200">Esc</b>{" "}
               deseleccionar
             </p>
+            {moldTool === "sculpt" && (
+              <p className="text-sky-300">
+                🖌 Modo esculpir: arrastra sobre la figura para moldearla
+              </p>
+            )}
+            {moldTool === "param" && selectedId !== null && (
+              <p className="text-indigo-300">
+                Clic en una parte de la figura para ajustar sus proporciones
+              </p>
+            )}
           </div>
         </div>
 
@@ -234,6 +331,22 @@ export default function Editor() {
               canRegenerate={selectedId !== null}
               regenLoading={regenLoading}
               lastModel={lastModel}
+            />
+
+            <MoldPanel
+              selected={selectedId !== null}
+              moldTool={moldTool}
+              onMoldTool={handleMoldTool}
+              selectedPart={selectedPart}
+              onSelectPart={handleSelectPart}
+              partScale={partScale}
+              onPartScale={handlePartScale}
+              brushSize={brushSize}
+              brushStrength={brushStrength}
+              onBrushSize={handleBrushSize}
+              onBrushStrength={handleBrushStrength}
+              onResetPart={handleResetPart}
+              onResetAll={handleResetAll}
             />
           </div>
           <ScenePanel

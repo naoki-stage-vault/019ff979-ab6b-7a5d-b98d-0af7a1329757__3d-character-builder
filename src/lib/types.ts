@@ -47,6 +47,38 @@ export interface SceneCharacterRecord {
   pos: Vec3;
   rot: Vec3; // radianes
   scale: Vec3;
+  /** Deformación de partes (proporciones + esculpido) para persistir. */
+  mold?: MoldData;
+}
+
+// ---------- Moldeado de partes ----------
+
+/** Partes canónicas del cuerpo. Los accesorios se anclan a su parte cercana. */
+export type PartId = "head" | "torso" | "armL" | "armR" | "legL" | "legR";
+
+export const PART_IDS: PartId[] = ["head", "torso", "armL", "armR", "legL", "legR"];
+
+export const PART_LABELS: Record<PartId, string> = {
+  head: "Cabeza",
+  torso: "Torso",
+  armL: "Brazo izq.",
+  armR: "Brazo der.",
+  legL: "Pierna izq.",
+  legR: "Pierna der.",
+};
+
+export const PART_AXIS_LABELS = ["Ancho (X)", "Alto (Y)", "Grosor (Z)"] as const;
+
+/**
+ * Moldeado serializado de un personaje.
+ * - scale: factor de escala paramétrico por parte (alrededor del centro de la parte).
+ * - sculpt: deltas por vértice. Cada entrada es [meshIdx, vertIdx, dx, dy, dz],
+ *   donde meshIdx es el índice del mesh dentro de la parte (orden de traverse,
+ *   estable para un mismo spec) y vertIdx el índice de vértice (geometrías no indexadas).
+ */
+export interface MoldData {
+  scale?: Partial<Record<PartId, Vec3>>;
+  sculpt?: Partial<Record<PartId, Array<[number, number, number, number, number]>>>;
 }
 
 export interface HierarchyItem {

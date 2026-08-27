@@ -2,10 +2,22 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
 import { buildCharacter, disposeObject } from "./characterBuilder";
+import {
+  applySculptGrab,
+  getMold,
+  initMold,
+  resetAll as resetAllMold,
+  resetPart as resetPartMold,
+  serializeMold,
+  setPartScale as setPartScaleMold,
+} from "./mold";
+import type { MeshMold, PartMold } from "./mold";
 import type {
   CharacterSpec,
   GizmoMode,
   HierarchyItem,
+  MoldData,
+  PartId,
   SceneCharacterRecord,
   Transform,
   Vec3,
@@ -17,6 +29,7 @@ export interface EditorCallbacks {
   onTransform: (id: string | null, t: Transform) => void;
   onModeChange: (mode: GizmoMode) => void;
   onDragChange: (dragging: boolean) => void;
+  onPartSelect: (partId: PartId | null) => void;
 }
 
 const POS_SNAP = 1; // 1 unidad = celda del grid
@@ -47,6 +60,16 @@ export class EditorScene {
   private disposed = false;
   private snapEnabled = false;
   private gizmoPointerDown = false;
+
+  // Moldeado por partes
+  private moldTool: "param" | "sculpt" | null = null;
+  private brushSize = 0.25;
+  private brushStrength = 0.6;
+  private selectedPart: PartId | null = null;
+  private sculpting = false;
+  private sculptTarget: { mm: MeshMold; pm: PartMold; mesh: THREE.Mesh } | null = null;
+  private lastWorld = new THREE.Vector3();
+  private brushCursor: THREE.Mesh;
 
   constructor(container: HTMLElement, callbacks: EditorCallbacks) {
     this.container = container;
@@ -97,10 +120,26 @@ export class EditorScene {
     });
     this.scene.add(this.gizmo.getHelper());
 
+    // Cursor del pincel de esculpido (anillo que sigue a la malla).
+    this.brushCursor = new THREE.Mesh(
+      new THREE.RingGeometry(0.82, 1, 48),
+      new THREE.MeshBasicMaterial({
+        color: 0x7dd3fc,
+        transparent: true,
+        opacity: 0.9,
+        side: THREE.DoubleSide,
+        depthTest: false,
+      }),
+    );
+    this.brushCursor.visible = false;
+    this.brushCursor.renderOrder = 999;
+    this.scene.add(this.brushCursor);
+
     this.setupWorld();
 
     // Eventos de ratón sobre el canvas (el gizmo vive en su propio overlay).
     this.renderer.domElement.addEventListener("pointerdown", this.onPointerDown);
+    this.renderer.domElement.addEventListener("pointermove", this.onPointerMove);
     this.renderer.domElement.addEventListener("pointerup", this.onPointerUp);
 
     window.addEventListener("keydown", this.onKeyDown);
@@ -174,12 +213,127 @@ export class EditorScene {
   }
 
   // ---------- Selección por raycasting ----------
+  private pickCharacterMesh(
+    e: PointerEvent,
+  ): { mesh: THREE.Mesh; group: THREE.Group; point: THREE.Vector3; normal: THREE.Vector3 } | null {
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    this.pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    this.pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    this.raycaster.setFromCamera(this.pointer, this.camera);
+    const hits = this.raycaster.intersectObjects(this.characters, true);
+    for (const h of hits) {
+      if (h.object instanceof THREE.Mesh && h.object.userData.partId) {
+        let g: THREE.Object3D | null = h.object;
+        while (g && !g.userData.isCharacter) g = g.parent;
+        if (g) {
+          const normal = (h.face?.normal ?? new THREE.Vector3(0, 1, 0))
+            .clone()
+            .transformDirection(h.object.matrixWorld);
+          return { mesh: h.object, group: g as THREE.Group, point: h.point, normal };
+        }
+      }
+    }
+    return null;
+  }
+
   private onPointerDown = (e: PointerEvent): void => {
     this.downPos = { x: e.clientX, y: e.clientY };
     this.downTime = performance.now();
+
+    if (this.moldTool === "sculpt" && !this.gizmo.dragging && !this.gizmoPointerDown) {
+      const hit = this.pickCharacterMesh(e);
+      if (hit) {
+        const partId = hit.mesh.userData.partId as PartId;
+        const pm = getMold(hit.group)?.parts[partId];
+        const mm = pm?.meshes.find((m) => m.mesh === hit.mesh);
+        if (pm && mm) {
+          this.sculpting = true;
+          this.orbit.enabled = false;
+          this.cb.onDragChange(true);
+          this.sculptTarget = { mm, pm, mesh: hit.mesh };
+          this.lastWorld.copy(hit.point);
+          this.brushCursor.visible = false;
+          this.selectPart(partId);
+          e.preventDefault();
+        }
+      }
+    }
   };
 
+  private onPointerMove = (e: PointerEvent): void => {
+    if (this.sculpting && this.sculptTarget) {
+      const { mm, pm, mesh } = this.sculptTarget;
+      const hit = this.pickCharacterMesh(e);
+      if (hit && hit.mesh === mesh) {
+        this.strokeTo(mm, pm, mesh, hit.point);
+      } else {
+        // El cursor salió de la malla: continuar sobre el plano del último punto.
+        this.raycaster.setFromCamera(this.pointer, this.camera);
+        const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(
+          this.camera.getWorldDirection(new THREE.Vector3()).negate(),
+          this.lastWorld,
+        );
+        const pt = new THREE.Vector3();
+        if (this.raycaster.ray.intersectPlane(plane, pt)) {
+          this.strokeTo(mm, pm, mesh, pt);
+        }
+      }
+      return;
+    }
+
+    // Hover: mostrar el cursor del pincel sobre la figura.
+    if (this.moldTool === "sculpt") {
+      const hit = this.pickCharacterMesh(e);
+      if (hit) {
+        this.brushCursor.visible = true;
+        this.brushCursor.position.copy(hit.point).addScaledVector(hit.normal, 0.002);
+        this.brushCursor.quaternion.setFromUnitVectors(
+          new THREE.Vector3(0, 0, 1),
+          hit.normal,
+        );
+        this.brushCursor.scale.setScalar(this.brushSize);
+      } else {
+        this.brushCursor.visible = false;
+      }
+    }
+  };
+
+  private strokeTo(
+    mm: MeshMold,
+    pm: PartMold,
+    mesh: THREE.Mesh,
+    worldPoint: THREE.Vector3,
+  ): void {
+    const dragWorld = new THREE.Vector3().copy(worldPoint).sub(this.lastWorld);
+    this.lastWorld.copy(worldPoint);
+    if (dragWorld.lengthSq() < 1e-8) return;
+
+    const local = new THREE.Vector3().copy(worldPoint);
+    mesh.worldToLocal(local);
+
+    // Radio del pincel en unidades locales (normalizado por la escala del personaje).
+    const g = this.characters.find((c) => c.userData.id === this.selectedId);
+    const avgScale = g
+      ? (Math.abs(g.scale.x) + Math.abs(g.scale.y) + Math.abs(g.scale.z)) / 3
+      : 1;
+    const radiusLocal = Math.max(this.brushSize / Math.max(avgScale, 0.01), 0.01);
+
+    const inv = new THREE.Matrix4().copy(mesh.matrixWorld).invert();
+    const dragLocal = dragWorld.clone().applyMatrix4(inv);
+
+    applySculptGrab(mm, pm.scale, local, radiusLocal, dragLocal, this.brushStrength);
+    this.selectPart(mesh.userData.partId as PartId);
+  }
+
   private onPointerUp = (e: PointerEvent): void => {
+    if (this.sculpting) {
+      this.sculpting = false;
+      this.sculptTarget = null;
+      this.orbit.enabled = true;
+      this.cb.onDragChange(false);
+      this.brushCursor.visible = false;
+    }
+
     const moved = Math.hypot(e.clientX - this.downPos.x, e.clientY - this.downPos.y);
     const quick = performance.now() - this.downTime < 500;
     const wasGizmo = this.gizmoPointerDown;
@@ -194,14 +348,19 @@ export class EditorScene {
     const hits = this.raycaster.intersectObjects(this.characters, true);
     if (hits.length === 0) {
       this.select(null);
+      if (this.moldTool) this.selectPart(null);
       return;
     }
     let obj: THREE.Object3D | null = hits[0].object;
     while (obj && !obj.userData.isCharacter) obj = obj.parent;
     if (obj && obj.userData.isCharacter) {
       this.select(obj.userData.id as string);
+      if (this.moldTool) {
+        this.selectPart((hits[0].object.userData.partId as PartId | undefined) ?? null);
+      }
     } else {
       this.select(null);
+      if (this.moldTool) this.selectPart(null);
     }
   };
 
@@ -256,14 +415,80 @@ export class EditorScene {
     this.cb.onModeChange(mode);
   }
 
+  // ---------- Moldeado de partes ----------
+  setMoldTool(tool: "param" | "sculpt" | null): void {
+    this.moldTool = tool;
+    this.renderer.domElement.style.cursor = tool === "sculpt" ? "crosshair" : "";
+    if (tool !== "sculpt") this.brushCursor.visible = false;
+    if (tool === null) this.selectPart(null);
+  }
+
+  setBrush(size: number, strength: number): void {
+    this.brushSize = size;
+    this.brushStrength = strength;
+  }
+
+  selectPart(partId: PartId | null): void {
+    for (const g of this.characters) this.highlightPart(g, null);
+    this.selectedPart = partId;
+    if (partId && this.selectedId) {
+      const g = this.characters.find((c) => c.userData.id === this.selectedId);
+      if (g) this.highlightPart(g, partId);
+    }
+    this.cb.onPartSelect(partId);
+  }
+
+  private highlightPart(group: THREE.Group, partId: PartId | null): void {
+    group.traverse((obj) => {
+      if (obj instanceof THREE.Mesh) {
+        const m = obj.material as THREE.MeshStandardMaterial | undefined;
+        if (!m || !m.emissive) return;
+        const isTarget = partId !== null && obj.userData.partId === partId;
+        m.emissive.setHex(isTarget ? 0x232c4a : 0x000000);
+        m.emissiveIntensity = isTarget ? 1 : 0;
+      }
+    });
+  }
+
+  getPartScale(id: string, partId: PartId): Vec3 | null {
+    const g = this.characters.find((c) => c.userData.id === id);
+    const pm = g ? getMold(g)?.parts[partId] : undefined;
+    return pm ? [pm.scale[0], pm.scale[1], pm.scale[2]] : null;
+  }
+
+  setPartScale(id: string, partId: PartId, axis: 0 | 1 | 2, value: number): void {
+    const g = this.characters.find((c) => c.userData.id === id);
+    if (!g) return;
+    setPartScaleMold(g, partId, axis, value);
+  }
+
+  resetPart(id: string, partId: PartId): void {
+    const g = this.characters.find((c) => c.userData.id === id);
+    if (!g) return;
+    resetPartMold(g, partId);
+  }
+
+  resetMold(id: string): void {
+    const g = this.characters.find((c) => c.userData.id === id);
+    if (!g) return;
+    resetAllMold(g);
+  }
+
   addCharacter(
     spec: CharacterSpec,
-    opts?: { id?: string; name?: string; transform?: Transform; prompt?: string },
+    opts?: {
+      id?: string;
+      name?: string;
+      transform?: Transform;
+      prompt?: string;
+      mold?: MoldData;
+    },
   ): string {
     const id = opts?.id ?? uid();
     const group = buildCharacter(spec, id);
     if (opts?.name) group.name = opts.name;
     group.userData.prompt = opts?.prompt;
+    initMold(group, opts?.mold);
 
     const t = opts?.transform;
     if (t) {
@@ -297,6 +522,7 @@ export class EditorScene {
     const newId = this.addCharacter(spec, {
       transform: { pos, rot: [src.rotation.x, src.rotation.y, src.rotation.z], scale: [src.scale.x, src.scale.y, src.scale.z] },
       prompt: src.userData.prompt,
+      mold: serializeMold(src) ?? undefined,
       name: `${src.name} copia`,
     });
     return newId;
@@ -309,7 +535,10 @@ export class EditorScene {
     this.scene.remove(group);
     disposeObject(group);
     this.characters.splice(idx, 1);
-    if (this.selectedId === id) this.select(null);
+    if (this.selectedId === id) {
+      this.select(null);
+      this.selectPart(null);
+    }
     this.emitHierarchy();
   }
 
@@ -343,6 +572,7 @@ export class EditorScene {
     group.rotation.set(...transform.rot);
     group.scale.set(...transform.scale);
     group.userData.baseY = transform.pos[1];
+    initMold(group);
 
     this.scene.add(group);
     this.characters.push(group);
@@ -357,6 +587,8 @@ export class EditorScene {
     if (id) {
       const g = this.characters.find((c) => c.userData.id === id);
       if (g) this.gizmo.attach(g);
+    } else {
+      this.selectPart(null);
     }
     this.cb.onSelect(id);
     this.emitTransform();
@@ -410,15 +642,19 @@ export class EditorScene {
 
   // ---------- Persistencia ----------
   saveScene(): SceneCharacterRecord[] {
-    return this.characters.map((g) => ({
-      id: g.userData.id as string,
-      nombre: g.name,
-      spec: g.userData.spec as CharacterSpec,
-      prompt: g.userData.prompt,
-      pos: [g.position.x, g.position.y, g.position.z],
-      rot: [g.rotation.x, g.rotation.y, g.rotation.z],
-      scale: [g.scale.x, g.scale.y, g.scale.z],
-    }));
+    return this.characters.map((g) => {
+      const mold = serializeMold(g);
+      return {
+        id: g.userData.id as string,
+        nombre: g.name,
+        spec: g.userData.spec as CharacterSpec,
+        prompt: g.userData.prompt,
+        pos: [g.position.x, g.position.y, g.position.z],
+        rot: [g.rotation.x, g.rotation.y, g.rotation.z],
+        scale: [g.scale.x, g.scale.y, g.scale.z],
+        ...(mold ? { mold } : {}),
+      };
+    });
   }
 
   loadScene(records: SceneCharacterRecord[]): void {
@@ -429,6 +665,7 @@ export class EditorScene {
         name: r.nombre,
         prompt: r.prompt,
         transform: { pos: r.pos, rot: r.rot, scale: r.scale },
+        mold: r.mold,
       });
     }
     this.select(null);
@@ -443,6 +680,7 @@ export class EditorScene {
     this.characters = [];
     this.gizmo.detach();
     this.selectedId = null;
+    this.selectPart(null);
     this.cb.onSelect(null);
     this.cb.onTransform(null, { pos: [0, 0, 0], rot: [0, 0, 0], scale: [1, 1, 1] });
   }
@@ -456,10 +694,14 @@ export class EditorScene {
     cancelAnimationFrame(this.raf);
     this.resizeObserver.disconnect();
     this.renderer.domElement.removeEventListener("pointerdown", this.onPointerDown);
+    this.renderer.domElement.removeEventListener("pointermove", this.onPointerMove);
     this.renderer.domElement.removeEventListener("pointerup", this.onPointerUp);
     window.removeEventListener("keydown", this.onKeyDown);
     window.removeEventListener("keyup", this.onKeyUp);
     this.clearAll();
+    this.scene.remove(this.brushCursor);
+    this.brushCursor.geometry.dispose();
+    (this.brushCursor.material as THREE.Material).dispose();
     this.gizmo.dispose();
     this.orbit.dispose();
     this.renderer.dispose();
