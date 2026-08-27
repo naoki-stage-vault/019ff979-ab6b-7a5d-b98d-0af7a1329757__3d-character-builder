@@ -46,6 +46,7 @@ export class EditorScene {
   private resizeObserver: ResizeObserver;
   private disposed = false;
   private snapEnabled = false;
+  private gizmoPointerDown = false;
 
   constructor(container: HTMLElement, callbacks: EditorCallbacks) {
     this.container = container;
@@ -81,6 +82,9 @@ export class EditorScene {
     this.gizmo = new TransformControls(this.camera, this.renderer.domElement);
     this.gizmo.setSize(0.9);
     this.gizmo.addEventListener("objectChange", () => this.emitTransform());
+    this.gizmo.addEventListener("mouseDown", () => {
+      this.gizmoPointerDown = true;
+    });
     this.gizmo.addEventListener("dragging-changed", (ev) => {
       const dragging = (ev as { value: boolean }).value;
       this.orbit.enabled = !dragging;
@@ -178,7 +182,9 @@ export class EditorScene {
   private onPointerUp = (e: PointerEvent): void => {
     const moved = Math.hypot(e.clientX - this.downPos.x, e.clientY - this.downPos.y);
     const quick = performance.now() - this.downTime < 500;
-    if (moved > 5 || !quick || this.gizmo.dragging) return;
+    const wasGizmo = this.gizmoPointerDown;
+    this.gizmoPointerDown = false;
+    if (moved > 5 || !quick || this.gizmo.dragging || wasGizmo) return;
 
     const rect = this.renderer.domElement.getBoundingClientRect();
     this.pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;

@@ -17,7 +17,6 @@ export default function Editor() {
   const sceneRef = useRef<EditorScene | null>(null);
   const selectedIdRef = useRef<string | null>(null);
 
-  const [apiKey, setApiKey] = useState("");
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
   const [regenLoading, setRegenLoading] = useState(false);
@@ -59,11 +58,11 @@ export default function Editor() {
   // --- Acciones ---
   const handleGenerate = useCallback(async () => {
     const scene = sceneRef.current;
-    if (!scene || !apiKey.trim() || !prompt.trim()) return;
+    if (!scene || !prompt.trim()) return;
     setLoading(true);
     setGenError(null);
     try {
-      const { spec, model } = await generateCharacter(prompt.trim(), apiKey.trim());
+      const { spec, model } = await generateCharacter(prompt.trim());
       scene.addCharacter(spec, { prompt: prompt.trim() });
       setLastModel(model);
       setPrompt("");
@@ -74,18 +73,18 @@ export default function Editor() {
     } finally {
       setLoading(false);
     }
-  }, [apiKey, prompt]);
+  }, [prompt]);
 
   const handleRegenerateLook = useCallback(async () => {
     const scene = sceneRef.current;
     const id = selectedIdRef.current;
-    if (!scene || !id || !apiKey.trim()) return;
+    if (!scene || !id) return;
     const current = scene.getSpec(id);
     if (!current) return;
     setRegenLoading(true);
     setGenError(null);
     try {
-      const { spec, model } = await generateLook(current, apiKey.trim());
+      const { spec, model } = await generateLook(current);
       scene.regenerateCharacter(id, spec);
       setLastModel(model);
       setStatus(`Look de "${spec.nombre}" regenerado (${model})`);
@@ -95,7 +94,7 @@ export default function Editor() {
     } finally {
       setRegenLoading(false);
     }
-  }, [apiKey]);
+  }, []);
 
   const handleSave = useCallback(() => {
     const scene = sceneRef.current;
@@ -226,8 +225,6 @@ export default function Editor() {
         <aside className="flex w-[300px] shrink-0 flex-col border-l border-zinc-800 bg-zinc-950">
           <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
             <GeneratorPanel
-              apiKey={apiKey}
-              onApiKey={setApiKey}
               prompt={prompt}
               onPrompt={setPrompt}
               loading={loading}

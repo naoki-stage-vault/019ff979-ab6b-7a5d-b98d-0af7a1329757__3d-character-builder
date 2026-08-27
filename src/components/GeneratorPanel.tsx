@@ -3,8 +3,6 @@
 import { useState } from "react";
 
 interface Props {
-  apiKey: string;
-  onApiKey: (key: string) => void;
   prompt: string;
   onPrompt: (p: string) => void;
   loading: boolean;
@@ -17,8 +15,6 @@ interface Props {
 }
 
 export default function GeneratorPanel({
-  apiKey,
-  onApiKey,
   prompt,
   onPrompt,
   loading,
@@ -29,36 +25,11 @@ export default function GeneratorPanel({
   regenLoading,
   lastModel,
 }: Props) {
-  const [showKey, setShowKey] = useState(false);
-
   return (
     <section className="border-b border-zinc-800 p-4">
       <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-400">
         Generar personaje con IA
       </h2>
-
-      <label className="mb-1 block text-[11px] text-zinc-500">
-        API key de Gemini (solo se guarda en memoria)
-      </label>
-      <div className="mb-3 flex gap-1">
-        <input
-          type={showKey ? "text" : "password"}
-          value={apiKey}
-          onChange={(e) => onApiKey(e.target.value)}
-          placeholder="AIza…"
-          autoComplete="off"
-          spellCheck={false}
-          className="h-8 w-full rounded border border-zinc-700 bg-zinc-900 px-2 text-xs text-zinc-200 outline-none placeholder:text-zinc-600 focus:border-indigo-500"
-        />
-        <button
-          type="button"
-          onClick={() => setShowKey((v) => !v)}
-          title={showKey ? "Ocultar key" : "Mostrar key"}
-          className="h-8 shrink-0 rounded border border-zinc-700 bg-zinc-800 px-2 text-xs text-zinc-400 hover:bg-zinc-700"
-        >
-          {showKey ? "🙈" : "👁"}
-        </button>
-      </div>
 
       <textarea
         value={prompt}
@@ -74,7 +45,7 @@ export default function GeneratorPanel({
       <button
         type="button"
         onClick={onGenerate}
-        disabled={loading || !apiKey.trim() || !prompt.trim()}
+        disabled={loading || !prompt.trim()}
         className="flex h-8 w-full items-center justify-center gap-2 rounded bg-indigo-600 text-xs font-medium text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-40"
       >
         {loading ? (
@@ -90,7 +61,7 @@ export default function GeneratorPanel({
       <button
         type="button"
         onClick={onRegenerateLook}
-        disabled={!canRegenerate || regenLoading || !apiKey.trim()}
+        disabled={!canRegenerate || regenLoading}
         className="mt-2 flex h-8 w-full items-center justify-center gap-2 rounded border border-indigo-700/60 bg-indigo-950/40 text-xs font-medium text-indigo-300 transition hover:bg-indigo-900/40 disabled:cursor-not-allowed disabled:opacity-40"
       >
         {regenLoading ? (
@@ -103,12 +74,11 @@ export default function GeneratorPanel({
         )}
       </button>
 
-      {!apiKey.trim() && (
-        <p className="mt-2 text-[11px] leading-relaxed text-amber-500/90">
-          Necesitas una API key de Google AI Studio para generar personajes.
-          Se guarda solo en memoria durante esta sesión.
-        </p>
-      )}
+      <p className="mt-2 text-[11px] leading-relaxed text-zinc-600">
+        La API key de Gemini la gestiona el servidor (variable de entorno{" "}
+        <code className="rounded bg-zinc-800 px-1 text-zinc-400">GEMINI_KEY</code>);
+        nunca se envía al navegador.
+      </p>
 
       {error && (
         <p className="mt-2 rounded border border-red-900/60 bg-red-950/40 px-2 py-1.5 text-[11px] leading-relaxed text-red-300">
