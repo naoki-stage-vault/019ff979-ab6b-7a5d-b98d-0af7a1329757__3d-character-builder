@@ -8,7 +8,6 @@ import { ACCESORIOS_VALIDOS, ESTILOS } from "./types";
 
 const BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 // Se intentan en orden; ante un 404 (modelo no disponible) se cae al siguiente.
-// Se intentan en orden; ante un 404 (modelo no disponible) se cae al siguiente.
 // Nota: gemini-2.5-flash / 2.0-flash ya no están disponibles para keys nuevas (error sugiere 3.6-flash).
 const MODEL_ORDER = ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.1-flash-lite"];
 
