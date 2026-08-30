@@ -321,7 +321,13 @@ export class EditorScene {
     const inv = new THREE.Matrix4().copy(mesh.matrixWorld).invert();
     const dragLocal = dragWorld.clone().applyMatrix4(inv);
 
-    applySculptGrab(mm, pm.scale, local, radiusLocal, dragLocal, this.brushStrength);
+    // Posición de la cámara en espacio local del mesh: sirve para que el pincel
+    // solo deforme los vértices de la cara visible (los que se tocan).
+    const cameraLocal = new THREE.Vector3();
+    this.camera.getWorldPosition(cameraLocal);
+    mesh.worldToLocal(cameraLocal);
+
+    applySculptGrab(mm, pm.scale, local, radiusLocal, dragLocal, this.brushStrength, cameraLocal);
     this.selectPart(mesh.userData.partId as PartId);
   }
 

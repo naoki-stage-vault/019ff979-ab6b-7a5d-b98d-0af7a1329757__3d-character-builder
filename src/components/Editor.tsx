@@ -307,7 +307,7 @@ export default function Editor() {
             </p>
             {moldTool === "sculpt" && (
               <p className="text-sky-300">
-                🖌 Sculpt mode: drag over the figure to mold it
+                🖌 Sculpt mode: drag on the surface to mold it (only the vertices you touch)
               </p>
             )}
             {moldTool === "param" && selectedId !== null && (

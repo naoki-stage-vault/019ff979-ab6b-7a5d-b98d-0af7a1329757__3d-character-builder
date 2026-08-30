@@ -168,6 +168,10 @@ export function resetAll(group: THREE.Group): void {
  * cursor (desplazamiento arrastrado), con caída suave hacia el borde.
  * El trabajo se hace en el espacio local del mesh, sobre las posiciones
  * mostradas (base * scale + deltas).
+ *
+ * Si se pasa cameraLocal (posición de la cámara en espacio local del mesh),
+ * solo se desplazan los vértices que miran hacia la cámara (máscara de cara
+ * frontal): el pincel deforma la superficie que se toca, no la cara opuesta.
  */
 export function applySculptGrab(
   mm: MeshMold,
@@ -176,9 +180,12 @@ export function applySculptGrab(
   radiusLocal: number,
   dragLocal: THREE.Vector3,
   strength: number,
+  cameraLocal?: THREE.Vector3 | null,
 ): void {
   if (radiusLocal <= 0) return;
   const pos = mm.mesh.geometry.attributes.position as THREE.BufferAttribute;
+  const normalArr = (mm.mesh.geometry.attributes.normal as THREE.BufferAttribute | undefined)
+    ?.array as Float32Array | undefined;
   const { base, deltas } = mm;
   const r2 = radiusLocal * radiusLocal;
   const drag = dragLocal.clone();
@@ -195,6 +202,19 @@ export function applySculptGrab(
     const dz = vz - centerLocal.z;
     const d2 = dx * dx + dy * dy + dz * dz;
     if (d2 > r2) continue;
+
+    // Máscara de cara frontal: solo se mueven los vértices cuya normal apunta
+    // hacia la cámara (la superficie que el cursor está tocando).
+    if (cameraLocal && normalArr) {
+      const nx = normalArr[i];
+      const ny = normalArr[i + 1];
+      const nz = normalArr[i + 2];
+      const tox = cameraLocal.x - vx;
+      const toy = cameraLocal.y - vy;
+      const toz = cameraLocal.z - vz;
+      if (nx * tox + ny * toy + nz * toz <= 0) continue;
+    }
+
     const f = 1 - Math.sqrt(d2) / radiusLocal;
     const w = f * f;
     deltas[i] += drag.x * w;

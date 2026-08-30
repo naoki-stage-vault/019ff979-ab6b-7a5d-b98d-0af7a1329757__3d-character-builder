@@ -182,8 +182,8 @@ export default function MoldPanel({
                 onChange={onBrushStrength}
               />
               <p className="text-[11px] leading-relaxed text-zinc-500">
-                Drag over the figure to push its surface like clay. Click a part
-                to select it.
+                Drag over the figure to push the surface you touch — only the
+                vertices on the visible side move. Click a part to select it.
               </p>
               <div className="flex gap-1">
                 <button
