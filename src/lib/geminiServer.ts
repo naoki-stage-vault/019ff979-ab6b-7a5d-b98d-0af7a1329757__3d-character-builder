@@ -7,13 +7,13 @@ import type {
 import { ACCESORIOS_VALIDOS, ESTILOS } from "./types";
 
 const BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
-// Se intentan en orden; ante un 404 (modelo no disponible) se cae al siguiente.
-// Nota: gemini-2.5-flash / 2.0-flash ya no están disponibles para keys nuevas (error sugiere 3.6-flash).
+// Tried in order; on a 404 (model unavailable) it falls back to the next one.
+// Note: gemini-2.5-flash / 2.0-flash are no longer available for new keys (error suggests 3.6-flash).
 const MODEL_ORDER = ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.1-flash-lite"];
 
 const HEX_COLOR_SCHEMA = {
   type: "STRING",
-  description: "Color en formato hexadecimal, ej: #3b6ea5",
+  description: "Color in hexadecimal format, e.g. #3b6ea5",
 };
 
 const COLOR_SCHEMA = {
@@ -31,15 +31,15 @@ const COLOR_SCHEMA = {
 const CHARACTER_SCHEMA = {
   type: "OBJECT",
   properties: {
-    nombre: { type: "STRING", description: "Nombre corto y creativo del personaje" },
+    nombre: { type: "STRING", description: "Short creative name for the character" },
     colores: COLOR_SCHEMA,
     proporciones: {
       type: "OBJECT",
       properties: {
-        alturaTorso: { type: "NUMBER", description: "Entre 0.4 y 1.6" },
-        alturaPiernas: { type: "NUMBER", description: "Entre 0.4 y 1.8" },
-        anchoHombros: { type: "NUMBER", description: "Entre 0.4 y 1.6" },
-        tamanoCabeza: { type: "NUMBER", description: "Entre 0.25 y 0.9" },
+        alturaTorso: { type: "NUMBER", description: "Between 0.4 and 1.6" },
+        alturaPiernas: { type: "NUMBER", description: "Between 0.4 and 1.8" },
+        anchoHombros: { type: "NUMBER", description: "Between 0.4 and 1.6" },
+        tamanoCabeza: { type: "NUMBER", description: "Between 0.25 and 0.9" },
       },
       required: ["alturaTorso", "alturaPiernas", "anchoHombros", "tamanoCabeza"],
     },
@@ -50,7 +50,7 @@ const CHARACTER_SCHEMA = {
         enum: ["casco", "capa", "espada", "escudo", "antenas", "ninguno"],
       },
       description:
-        "Lista de accesorios del personaje. Usa ['ninguno'] si no lleva accesorios.",
+        "Character accessories. Use ['ninguno'] (none) if the character wears no accessories.",
     },
     estilo: {
       type: "STRING",
@@ -134,7 +134,7 @@ export function sanitizeSpec(raw: unknown): CharacterSpec {
     nombre:
       typeof o.nombre === "string" && o.nombre.trim().length > 0
         ? o.nombre.trim().slice(0, 40)
-        : "Personaje",
+        : "Character",
     colores: sanitizePalette(o.colores),
     proporciones: {
       alturaTorso: toNum(p.alturaTorso, DEFAULT_PROPS.alturaTorso, 0.4, 1.6),
@@ -155,7 +155,7 @@ interface GeminiResult<T> {
 function getApiKey(): string {
   const key = process.env.GEMINI_KEY;
   if (!key || key.trim().length === 0) {
-    throw new Error("GEMINI_KEY no está configurada en el servidor.");
+    throw new Error("GEMINI_KEY is not set on the server.");
   }
   return key.trim();
 }
@@ -186,8 +186,8 @@ async function callGemini<T>(
       );
 
       if (res.status === 404) {
-        lastError = new Error(`El modelo ${model} no está disponible.`);
-        continue; // probar el siguiente modelo
+        lastError = new Error(`Model ${model} is not available.`);
+        continue; // try the next model
       }
 
       if (!res.ok) {
@@ -196,10 +196,10 @@ async function callGemini<T>(
           const body = await res.json();
           detail = body?.error?.message ?? detail;
         } catch {
-          /* sin cuerpo JSON */
+          /* no JSON body */
         }
         const err = new Error(detail);
-        // Errores de auth/schema no se resuelven cambiando de modelo.
+        // Auth/schema errors will not be fixed by switching models.
         if (res.status === 400 || res.status === 401 || res.status === 403) {
           throw err;
         }
@@ -215,13 +215,13 @@ async function callGemini<T>(
         .map((p) => p.text)
         .join("");
       if (!text) {
-        throw new Error("La API respondió sin contenido.");
+        throw new Error("The API returned no content.");
       }
       let parsed: unknown;
       try {
         parsed = JSON.parse(text);
       } catch {
-        throw new Error("La API devolvió JSON inválido.");
+        throw new Error("The API returned invalid JSON.");
       }
       return { value: parsed as T, model };
     } catch (err) {
@@ -229,28 +229,28 @@ async function callGemini<T>(
     }
   }
 
-  throw lastError ?? new Error("No se pudo conectar con la API de Gemini.");
+  throw lastError ?? new Error("Could not connect to the Gemini API.");
 }
 
 function buildCharacterPrompt(prompt: string): string {
   return [
-    `Genera un personaje para un editor 3D low-poly a partir de esta descripción: "${prompt}".`,
-    "Responde ÚNICAMENTE con JSON válido según el schema indicado.",
-    "- nombre: nombre corto y creativo en español.",
-    "- colores: hexadecimals con '#' (ej: #3b6ea5).",
-    "- proporciones: números dentro de los rangos indicados.",
-    "- accesorios: usa valores de la lista; ['ninguno'] si no aplica.",
-    "- estilo: uno de la lista.",
+    `Generate a character for a low-poly 3D editor from this description: "${prompt}".`,
+    "Respond ONLY with valid JSON matching the provided schema.",
+    "- nombre: short, creative name in English.",
+    "- colores: hex colors with '#' (e.g. #3b6ea5).",
+    "- proporciones: numbers within the indicated ranges.",
+    "- accesorios: use values from the list; ['ninguno'] if none apply.",
+    "- estilo: one of the values from the list.",
   ].join(" ");
 }
 
 function buildLookPrompt(spec: CharacterSpec): string {
   return [
-    `Mantén el personaje "${spec.nombre}" (estilo ${spec.estilo}) pero cambia su look:`,
-    "- Varía la paleta de colores (colores coherentes con el estilo).",
-    "- Cambia la lista de accesorios (puede quedar igual si encaja).",
-    "NO cambies nombre, estilo ni proporciones.",
-    "Responde ÚNICAMENTE con JSON válido con los campos colores y accesorios según el schema.",
+    `Keep the character "${spec.nombre}" (style ${spec.estilo}) but change its look:`,
+    "- Vary the color palette (colors consistent with the style).",
+    "- Change the accessory list (it may stay the same if it fits).",
+    "DO NOT change name, style or proportions.",
+    "Respond ONLY with valid JSON with the colores and accesorios fields per the schema.",
   ].join(" ");
 }
 
@@ -284,15 +284,15 @@ export function serverErrorToMessage(err: unknown): string {
   if (err instanceof Error) {
     const m = err.message;
     if (/API key|api key|403/.test(m)) {
-      return "API key de Gemini inválida o sin permisos (HTTP 403). Revisa GEMINI_KEY en el servidor.";
+      return "Invalid or unauthorized Gemini API key (HTTP 403). Check GEMINI_KEY on the server.";
     }
-    if (/401/.test(m)) return "API key de Gemini inválida (HTTP 401).";
-    if (/429/.test(m)) return "Límite de peticiones de Gemini superado (HTTP 429). Espera un momento.";
-    if (/404/.test(m)) return "El modelo de Gemini no está disponible. Intenta de nuevo más tarde.";
-    if (/JSON inválido/.test(m)) return "Gemini respondió con JSON inválido. Intenta de nuevo.";
-    if (/sin contenido/.test(m)) return "Gemini no devolvió contenido. Intenta de nuevo.";
+    if (/401/.test(m)) return "Invalid Gemini API key (HTTP 401).";
+    if (/429/.test(m)) return "Gemini rate limit exceeded (HTTP 429). Try again in a moment.";
+    if (/404/.test(m)) return "The Gemini model is not available. Try again later.";
+    if (/invalid JSON/.test(m)) return "Gemini responded with invalid JSON. Try again.";
+    if (/no content/.test(m)) return "Gemini returned no content. Try again.";
     if (/GEMINI_KEY/.test(m)) return m;
     return m;
   }
-  return "Error inesperado al generar el personaje.";
+  return "Unexpected error while generating the character.";
 }

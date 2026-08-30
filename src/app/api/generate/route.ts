@@ -19,7 +19,7 @@ export async function POST(req: Request): Promise<NextResponse> {
     body = (await req.json()) as GenerateBody;
   } catch {
     return NextResponse.json(
-      { error: "Cuerpo de petición inválido (se esperaba JSON)." },
+      { error: "Invalid request body (expected JSON)." },
       { status: 400 },
     );
   }
@@ -28,11 +28,11 @@ export async function POST(req: Request): Promise<NextResponse> {
     if (body.mode === "look") {
       if (!body.spec || typeof body.spec !== "object") {
         return NextResponse.json(
-          { error: "Falta el spec del personaje para regenerar el look." },
+          { error: "Missing character spec to regenerate the look." },
           { status: 400 },
         );
       }
-      // Sanitizar antes de mandar al modelo para que el prompt sea estable.
+      // Sanitize before sending to the model so the prompt is stable.
       const spec = sanitizeSpec(body.spec);
       const { spec: next, model } = await generateLook(spec);
       return NextResponse.json({ spec: next, model });
@@ -41,13 +41,13 @@ export async function POST(req: Request): Promise<NextResponse> {
     const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
     if (!prompt) {
       return NextResponse.json(
-        { error: "Falta la descripción del personaje (prompt)." },
+        { error: "Missing character description (prompt)." },
         { status: 400 },
       );
     }
     if (prompt.length > 500) {
       return NextResponse.json(
-        { error: "La descripción es demasiado larga (máx. 500 caracteres)." },
+        { error: "The description is too long (max. 500 characters)." },
         { status: 400 },
       );
     }

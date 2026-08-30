@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #09090b;
-  --foreground: #e4e4e7;
+  --background: #fafafa;
+  --foreground: #18181b;
 }
 
 @theme inline {
@@ -23,7 +23,7 @@ body {
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
 
-/* Ocultar flechas de los inputs numéricos para un look más limpio */
+/* Hide number input spinners for a cleaner look */
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button {
   -webkit-appearance: none;
