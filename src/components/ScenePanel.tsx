@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { HierarchyItem, Transform } from "@/lib/types";
+import { ACCESORIO_LABELS, ESTILO_LABELS } from "@/lib/types";
 
 const STYLE_ICON: Record<string, string> = {
   robot: "🤖",
@@ -59,9 +60,9 @@ function TransformFields({
 
   const labels = ["X", "Y", "Z"];
   const sections: Array<{ title: string; start: number }> = [
-    { title: "Posición", start: 0 },
-    { title: "Rotación (°)", start: 3 },
-    { title: "Escala", start: 6 },
+    { title: "Position", start: 0 },
+    { title: "Rotation (°)", start: 3 },
+    { title: "Scale", start: 6 },
   ];
 
   return (
@@ -79,11 +80,11 @@ function TransformFields({
                   <span className="w-3 text-[10px] text-zinc-500">{lbl}</span>
                   <input
                     type="number"
-                    step={s.title === "Rotación (°)" ? 1 : 0.1}
+                    step={s.title === "Rotation (°)" ? 1 : 0.1}
                     value={draft[idx]}
                     onChange={(e) => change(idx, e.target.value)}
                     onBlur={() => setDraft(toDraft(transform))}
-                    className="h-7 w-full rounded border border-zinc-700 bg-zinc-900 px-1.5 text-[11px] text-zinc-200 outline-none focus:border-indigo-500"
+                    className="h-7 w-full rounded border border-zinc-300 bg-white px-1.5 text-[11px] text-zinc-900 outline-none focus:border-indigo-500"
                   />
                 </label>
               );
@@ -132,16 +133,16 @@ export default function ScenePanel({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {/* Jerarquía */}
-      <section className="min-h-0 flex-1 overflow-y-auto border-b border-zinc-800 p-4">
-        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">
-          Escena ({characters.length})
+      {/* Hierarchy */}
+      <section className="min-h-0 flex-1 overflow-y-auto border-b border-zinc-200 p-4">
+        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+          Scene ({characters.length})
         </h2>
 
         {characters.length === 0 && (
-          <p className="text-[11px] leading-relaxed text-zinc-600">
-            Sin personajes todavía. Describe uno en el generador de arriba o
-            carga una escena guardada.
+          <p className="text-[11px] leading-relaxed text-zinc-500">
+            No characters yet. Describe one in the generator above or load a
+            saved scene.
           </p>
         )}
 
@@ -153,8 +154,8 @@ export default function ScenePanel({
                 key={c.id}
                 className={`group rounded border px-2 py-1.5 text-xs transition ${
                   active
-                    ? "border-indigo-500/70 bg-indigo-950/50 text-indigo-100"
-                    : "border-zinc-800 bg-zinc-900/60 text-zinc-300 hover:border-zinc-700"
+                    ? "border-indigo-500 bg-indigo-50 text-indigo-800"
+                    : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300"
                 }`}
               >
                 <div className="flex items-center gap-2">
@@ -176,36 +177,36 @@ export default function ScenePanel({
                           e.stopPropagation();
                         }}
                         onClick={(e) => e.stopPropagation()}
-                        className="min-w-0 flex-1 rounded border border-indigo-500 bg-zinc-900 px-1 py-0.5 text-[11px] text-zinc-100 outline-none"
+                        className="min-w-0 flex-1 rounded border border-indigo-500 bg-white px-1 text-[11px] text-zinc-900 outline-none"
                       />
                     ) : (
                       <span className="truncate">{c.name}</span>
                     )}
                   </button>
-                  <span className="shrink-0 rounded bg-zinc-800 px-1 py-0.5 text-[9px] uppercase text-zinc-500">
-                    {c.estilo}
+                  <span className="shrink-0 rounded bg-zinc-100 px-1 py-0.5 text-[9px] uppercase text-zinc-500">
+                    {ESTILO_LABELS[c.estilo] ?? c.estilo}
                   </span>
                   <button
                     type="button"
-                    title="Renombrar"
+                    title="Rename"
                     onClick={() => startRename(c.id, c.name)}
-                    className="shrink-0 text-zinc-600 opacity-0 transition hover:text-zinc-200 group-hover:opacity-100"
+                    className="shrink-0 text-zinc-400 opacity-0 transition hover:text-zinc-700 group-hover:opacity-100"
                   >
                     ✎
                   </button>
                   <button
                     type="button"
-                    title="Duplicar"
+                    title="Duplicate"
                     onClick={() => onDuplicate(c.id)}
-                    className="shrink-0 text-zinc-600 opacity-0 transition hover:text-zinc-200 group-hover:opacity-100"
+                    className="shrink-0 text-zinc-400 opacity-0 transition hover:text-zinc-700 group-hover:opacity-100"
                   >
                     ⧉
                   </button>
                   <button
                     type="button"
-                    title="Eliminar"
+                    title="Delete"
                     onClick={() => onDelete(c.id)}
-                    className="shrink-0 text-zinc-600 opacity-0 transition hover:text-red-400 group-hover:opacity-100"
+                    className="shrink-0 text-zinc-400 opacity-0 transition hover:text-red-500 group-hover:opacity-100"
                   >
                     🗑
                   </button>
@@ -216,23 +217,23 @@ export default function ScenePanel({
         </ul>
       </section>
 
-      {/* Propiedades */}
+      {/* Properties */}
       <section className="shrink-0 overflow-y-auto p-4">
-        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">
-          Propiedades
+        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+          Properties
         </h2>
 
         {!selected ? (
-          <p className="text-[11px] text-zinc-600">
-            Selecciona un personaje en la escena o en la lista.
+          <p className="text-[11px] text-zinc-500">
+            Select a character in the scene or in the list.
           </p>
         ) : (
           <div className="space-y-3">
             <div>
               <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-zinc-500">
-                Nombre
+                Name
               </p>
-              <p className="text-xs font-medium text-zinc-200">{selected.name}</p>
+              <p className="text-xs font-medium text-zinc-900">{selected.name}</p>
               {selected.accesorios.filter((a) => a !== "ninguno").length > 0 && (
                 <div className="mt-1.5 flex flex-wrap gap-1">
                   {selected.accesorios
@@ -240,9 +241,9 @@ export default function ScenePanel({
                     .map((a) => (
                       <span
                         key={a}
-                        className="rounded-full bg-zinc-800 px-2 py-0.5 text-[9px] uppercase tracking-wide text-zinc-400"
+                        className="rounded-full bg-zinc-100 px-2 py-0.5 text-[9px] uppercase tracking-wide text-zinc-600"
                       >
-                        {a}
+                        {ACCESORIO_LABELS[a] ?? a}
                       </span>
                     ))}
                 </div>
@@ -254,23 +255,23 @@ export default function ScenePanel({
             <button
               type="button"
               onClick={() => selectedId && onDuplicate(selectedId)}
-              className="h-7 w-full rounded border border-zinc-700 bg-zinc-800 text-[11px] text-zinc-300 transition hover:bg-zinc-700"
+              className="h-7 w-full rounded border border-zinc-300 bg-white text-[11px] text-zinc-700 transition hover:bg-zinc-100"
             >
-              ⧉ Duplicar
+              ⧉ Duplicate
             </button>
             <button
               type="button"
               onClick={() => selectedId && startRename(selectedId, selected.name)}
-              className="h-7 w-full rounded border border-zinc-700 bg-zinc-800 text-[11px] text-zinc-300 transition hover:bg-zinc-700"
+              className="h-7 w-full rounded border border-zinc-300 bg-white text-[11px] text-zinc-700 transition hover:bg-zinc-100"
             >
-              ✎ Renombrar
+              ✎ Rename
             </button>
             <button
               type="button"
               onClick={() => selectedId && onDelete(selectedId)}
-              className="h-7 w-full rounded border border-red-900/60 bg-red-950/30 text-[11px] text-red-300 transition hover:bg-red-950/60"
+              className="h-7 w-full rounded border border-red-300 bg-red-50 text-[11px] text-red-700 transition hover:bg-red-100"
             >
-              🗑 Eliminar
+              🗑 Delete
             </button>
           </div>
         )}

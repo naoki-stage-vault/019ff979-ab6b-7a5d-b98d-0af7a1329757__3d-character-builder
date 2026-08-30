@@ -40,7 +40,7 @@ function Slider({
     <label className="block">
       <span className="mb-1 flex items-center justify-between text-[10px] font-medium uppercase tracking-wider text-zinc-500">
         {label}
-        <span className="rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-[10px] text-zinc-300">
+        <span className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] text-zinc-700">
           {format ? format(value) : value.toFixed(2)}
         </span>
       </span>
@@ -73,29 +73,29 @@ export default function MoldPanel({
   onResetAll,
 }: Props) {
   return (
-    <section className="border-b border-zinc-800 p-4">
-      <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-400">
-        Moldeado de partes
+    <section className="border-b border-zinc-200 p-4">
+      <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+        Part molding
       </h2>
 
       {!selected ? (
-        <p className="text-[11px] leading-relaxed text-zinc-600">
-          Selecciona o genera un personaje para moldear cada parte de su cuerpo.
+        <p className="text-[11px] leading-relaxed text-zinc-500">
+          Select or generate a character to mold each part of its body.
         </p>
       ) : (
         <div className="space-y-3">
-          {/* Herramienta */}
-          <div className="flex items-center gap-1 rounded-lg border border-zinc-800 bg-zinc-900 p-0.5">
+          {/* Tool */}
+          <div className="flex items-center gap-1 rounded-lg border border-zinc-200 bg-zinc-100 p-0.5">
             <button
               type="button"
               onClick={() => onMoldTool("param")}
               className={`flex-1 rounded-md px-2 py-1 text-[11px] transition ${
                 moldTool === "param"
                   ? "bg-indigo-600 text-white"
-                  : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+                  : "text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900"
               }`}
             >
-              📐 Proporciones
+              📐 Proportions
             </button>
             <button
               type="button"
@@ -103,17 +103,17 @@ export default function MoldPanel({
               className={`flex-1 rounded-md px-2 py-1 text-[11px] transition ${
                 moldTool === "sculpt"
                   ? "bg-indigo-600 text-white"
-                  : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+                  : "text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900"
               }`}
             >
-              🖌 Esculpir
+              🖌 Sculpt
             </button>
           </div>
 
-          {/* Partes */}
+          {/* Parts */}
           <div>
             <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-zinc-500">
-              Parte
+              Part
             </p>
             <div className="grid grid-cols-2 gap-1">
               {PART_IDS.map((p) => (
@@ -123,8 +123,8 @@ export default function MoldPanel({
                   onClick={() => onSelectPart(p)}
                   className={`rounded border px-2 py-1 text-[11px] transition ${
                     selectedPart === p
-                      ? "border-indigo-500/70 bg-indigo-950/50 text-indigo-100"
-                      : "border-zinc-800 bg-zinc-900/60 text-zinc-300 hover:border-zinc-700"
+                      ? "border-indigo-500 bg-indigo-50 text-indigo-700"
+                      : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300"
                   }`}
                 >
                   {PART_LABELS[p]}
@@ -152,21 +152,21 @@ export default function MoldPanel({
                   <button
                     type="button"
                     onClick={onResetPart}
-                    className="h-7 w-full rounded border border-zinc-700 bg-zinc-800 text-[11px] text-zinc-300 transition hover:bg-zinc-700"
+                    className="h-7 w-full rounded border border-zinc-300 bg-white text-[11px] text-zinc-700 transition hover:bg-zinc-100"
                   >
-                    ↺ Restablecer parte
+                    ↺ Reset part
                   </button>
                 </>
               ) : (
-                <p className="text-[11px] text-zinc-600">
-                  Selecciona una parte para ajustar sus proporciones.
+                <p className="text-[11px] text-zinc-500">
+                  Select a part to adjust its proportions.
                 </p>
               )}
             </div>
           ) : (
             <div className="space-y-2">
               <Slider
-                label="Tamaño del pincel"
+                label="Brush size"
                 value={brushSize}
                 min={0.05}
                 max={0.6}
@@ -174,7 +174,7 @@ export default function MoldPanel({
                 onChange={onBrushSize}
               />
               <Slider
-                label="Intensidad"
+                label="Strength"
                 value={brushStrength}
                 min={0.05}
                 max={1}
@@ -182,31 +182,31 @@ export default function MoldPanel({
                 onChange={onBrushStrength}
               />
               <p className="text-[11px] leading-relaxed text-zinc-500">
-                Arrastra sobre la figura para empujar su superficie como
-                arcilla. Haz clic sobre una parte para seleccionarla.
+                Drag over the figure to push its surface like clay. Click a part
+                to select it.
               </p>
               <div className="flex gap-1">
                 <button
                   type="button"
                   onClick={onResetPart}
-                  className="h-7 flex-1 rounded border border-zinc-700 bg-zinc-800 text-[11px] text-zinc-300 transition hover:bg-zinc-700"
+                  className="h-7 flex-1 rounded border border-zinc-300 bg-white text-[11px] text-zinc-700 transition hover:bg-zinc-100"
                 >
-                  ↺ Parte
+                  ↺ Part
                 </button>
                 <button
                   type="button"
                   onClick={onResetAll}
-                  className="h-7 flex-1 rounded border border-zinc-700 bg-zinc-800 text-[11px] text-zinc-300 transition hover:bg-zinc-700"
+                  className="h-7 flex-1 rounded border border-zinc-300 bg-white text-[11px] text-zinc-700 transition hover:bg-zinc-100"
                 >
-                  ↺ Todo
+                  ↺ All
                 </button>
               </div>
             </div>
           )}
 
-          <p className="text-[10px] leading-relaxed text-zinc-600">
-            El moldeado se guarda junto a la escena. Regenerar el look
-            reconstruye el personaje y reinicia su moldeado.
+          <p className="text-[10px] leading-relaxed text-zinc-400">
+            Molding is saved with the scene. Regenerating the look rebuilds the
+            character and resets its molding.
           </p>
         </div>
       )}

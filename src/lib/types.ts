@@ -59,15 +59,15 @@ export type PartId = "head" | "torso" | "armL" | "armR" | "legL" | "legR";
 export const PART_IDS: PartId[] = ["head", "torso", "armL", "armR", "legL", "legR"];
 
 export const PART_LABELS: Record<PartId, string> = {
-  head: "Cabeza",
+  head: "Head",
   torso: "Torso",
-  armL: "Brazo izq.",
-  armR: "Brazo der.",
-  legL: "Pierna izq.",
-  legR: "Pierna der.",
+  armL: "Left arm",
+  armR: "Right arm",
+  legL: "Left leg",
+  legR: "Right leg",
 };
 
-export const PART_AXIS_LABELS = ["Ancho (X)", "Alto (Y)", "Grosor (Z)"] as const;
+export const PART_AXIS_LABELS = ["Width (X)", "Height (Y)", "Depth (Z)"] as const;
 
 /**
  * Moldeado serializado de un personaje.
@@ -102,7 +102,23 @@ export const ACCESORIOS_VALIDOS: Accesorio[] = [
 ];
 
 export const MODE_LABELS: Record<GizmoMode, string> = {
-  translate: "Mover",
-  rotate: "Rotar",
-  scale: "Escalar",
+  translate: "Move",
+  rotate: "Rotate",
+  scale: "Scale",
+};
+
+export const ESTILO_LABELS: Record<Estilo, string> = {
+  robot: "Robot",
+  humanoide: "Humanoid",
+  fantasia: "Fantasy",
+  animal: "Animal",
+};
+
+export const ACCESORIO_LABELS: Record<Accesorio, string> = {
+  casco: "Helmet",
+  capa: "Cape",
+  espada: "Sword",
+  escudo: "Shield",
+  antenas: "Antennas",
+  ninguno: "None",
 };

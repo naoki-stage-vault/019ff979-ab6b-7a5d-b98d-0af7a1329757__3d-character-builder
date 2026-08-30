@@ -54,7 +54,7 @@ export default function Editor() {
     setPartScale(scene.getPartScale(id, partId));
   }, []);
 
-  // --- Montar la escena 3D una sola vez ---
+  // --- Mount the 3D scene once ---
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -84,7 +84,7 @@ export default function Editor() {
     };
   }, [refreshPartScale]);
 
-  // Sincronizar herramienta de moldeado y pincel con la escena.
+  // Sync molding tool and brush with the scene.
   useEffect(() => {
     sceneRef.current?.setMoldTool(moldTool);
   }, [moldTool]);
@@ -93,7 +93,7 @@ export default function Editor() {
     sceneRef.current?.setBrush(brushSize, brushStrength);
   }, [brushSize, brushStrength]);
 
-  // --- Acciones ---
+  // --- Actions ---
   const handleGenerate = useCallback(async () => {
     const scene = sceneRef.current;
     if (!scene || !prompt.trim()) return;
@@ -104,7 +104,7 @@ export default function Editor() {
       scene.addCharacter(spec, { prompt: prompt.trim() });
       setLastModel(model);
       setPrompt("");
-      setStatus(`Personaje "${spec.nombre}" creado (${model})`);
+      setStatus(`Character "${spec.nombre}" created (${model})`);
       window.setTimeout(() => setStatus(null), 4000);
     } catch (err) {
       setGenError(friendlyGeminiError(err));
@@ -126,7 +126,7 @@ export default function Editor() {
       scene.regenerateCharacter(id, spec);
       refreshPartScale(id, selectedPartRef.current);
       setLastModel(model);
-      setStatus(`Look de "${spec.nombre}" regenerado (${model})`);
+      setStatus(`Look for "${spec.nombre}" regenerated (${model})`);
       window.setTimeout(() => setStatus(null), 4000);
     } catch (err) {
       setGenError(friendlyGeminiError(err));
@@ -140,10 +140,10 @@ export default function Editor() {
     if (!scene) return;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(scene.saveScene()));
-      setStatus("Escena guardada en localStorage ✓");
+      setStatus("Scene saved to localStorage ✓");
       window.setTimeout(() => setStatus(null), 3000);
     } catch {
-      setStatus("Error al guardar en localStorage");
+      setStatus("Error saving to localStorage");
     }
   }, []);
 
@@ -152,18 +152,18 @@ export default function Editor() {
     if (!scene) return;
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) {
-      setStatus("No hay escena guardada");
+      setStatus("No saved scene");
       window.setTimeout(() => setStatus(null), 3000);
       return;
     }
     try {
       const records = JSON.parse(raw) as Parameters<typeof scene.loadScene>[0];
-      if (!Array.isArray(records)) throw new Error("formato inválido");
+      if (!Array.isArray(records)) throw new Error("invalid format");
       scene.loadScene(records);
-      setStatus(`Escena cargada (${records.length} personajes) ✓`);
+      setStatus(`Scene loaded (${records.length} characters) ✓`);
       window.setTimeout(() => setStatus(null), 3000);
     } catch {
-      setStatus("La escena guardada es inválida");
+      setStatus("Saved scene is invalid");
     }
   }, []);
 
@@ -175,10 +175,10 @@ export default function Editor() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `escena-3d-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `scene-3d-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    setStatus("Archivo .json exportado ✓");
+    setStatus(".json file exported ✓");
     window.setTimeout(() => setStatus(null), 3000);
   }, []);
 
@@ -281,7 +281,7 @@ export default function Editor() {
   );
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-zinc-950 text-zinc-200">
+    <div className="flex h-full min-h-0 flex-col bg-zinc-50 text-zinc-900">
       <Toolbar
         mode={mode}
         onMode={handleMode}
@@ -293,33 +293,33 @@ export default function Editor() {
       />
 
       <div className="flex min-h-0 flex-1">
-        {/* Viewport */}
+        {/* Viewport (dark canvas) */}
         <div ref={containerRef} className="relative min-w-0 flex-1">
           <div className="pointer-events-none absolute bottom-3 left-3 z-10 rounded border border-zinc-800 bg-zinc-950/70 px-2.5 py-1.5 text-[10px] leading-relaxed text-zinc-400 backdrop-blur">
             <p>
-              <b className="text-zinc-200">W</b> mover · <b className="text-zinc-200">E</b> rotar ·{" "}
-              <b className="text-zinc-200">R</b> escalar
+              <b className="text-zinc-200">W</b> move · <b className="text-zinc-200">E</b> rotate ·{" "}
+              <b className="text-zinc-200">R</b> scale
             </p>
             <p>
-              <b className="text-zinc-200">Shift</b> + arrastrar = snapping ·{" "}
-              <b className="text-zinc-200">Supr</b> eliminar · <b className="text-zinc-200">Esc</b>{" "}
-              deseleccionar
+              <b className="text-zinc-200">Shift</b> + drag = snapping ·{" "}
+              <b className="text-zinc-200">Del</b> delete · <b className="text-zinc-200">Esc</b>{" "}
+              deselect
             </p>
             {moldTool === "sculpt" && (
               <p className="text-sky-300">
-                🖌 Modo esculpir: arrastra sobre la figura para moldearla
+                🖌 Sculpt mode: drag over the figure to mold it
               </p>
             )}
             {moldTool === "param" && selectedId !== null && (
               <p className="text-indigo-300">
-                Clic en una parte de la figura para ajustar sus proporciones
+                Click a body part to adjust its proportions
               </p>
             )}
           </div>
         </div>
 
-        {/* Panel lateral */}
-        <aside className="flex w-[300px] shrink-0 flex-col border-l border-zinc-800 bg-zinc-950">
+        {/* Side panel (light) */}
+        <aside className="flex w-[300px] shrink-0 flex-col border-l border-zinc-200 bg-white">
           <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
             <GeneratorPanel
               prompt={prompt}

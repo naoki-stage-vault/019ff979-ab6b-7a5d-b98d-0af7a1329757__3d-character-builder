@@ -1,8 +1,9 @@
 import type { CharacterSpec } from "./types";
 
 /**
- * Cliente del editor: llama al route handler /api/generate del propio
- * servidor Next.js, que es quien guarda GEMINI_KEY (nunca llega al navegador).
+ * Editor client: calls the /api/generate route handler on this Next.js
+ * server, which is the one that holds GEMINI_KEY (it never reaches the
+ * browser).
  */
 
 interface GenerateResponse {
@@ -20,20 +21,18 @@ async function postGenerate(body: unknown): Promise<GenerateResponse> {
       body: JSON.stringify(body),
     });
   } catch {
-    throw new Error(
-      "Error de red: no se pudo contactar el servidor del editor.",
-    );
+    throw new Error("Network error: could not reach the editor server.");
   }
 
   let data: GenerateResponse;
   try {
     data = (await res.json()) as GenerateResponse;
   } catch {
-    throw new Error("El servidor respondió con un formato inválido.");
+    throw new Error("The server responded with an invalid format.");
   }
 
   if (!res.ok || !data.spec) {
-    throw new Error(data.error ?? `Error del servidor (HTTP ${res.status}).`);
+    throw new Error(data.error ?? `Server error (HTTP ${res.status}).`);
   }
   return data;
 }
@@ -54,5 +53,5 @@ export async function generateLook(
 
 export function friendlyGeminiError(err: unknown): string {
   if (err instanceof Error) return err.message;
-  return "Error inesperado al generar el personaje.";
+  return "Unexpected error while generating the character.";
 }

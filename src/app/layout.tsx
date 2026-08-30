@@ -13,15 +13,15 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Editor 3D de Personajes con IA",
+  title: "AI 3D Character Editor",
   description:
-    "Editor 3D en el navegador: genera personajes con Gemini y manipúlalos con gizmos estilo Blender.",
+    "In-browser 3D editor: generate characters with Gemini and manipulate them with Blender-style gizmos.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
-      lang="es"
+      lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="h-full overflow-hidden">{children}</body>
